@@ -1,0 +1,9 @@
+<resources>
+    <!-- Custom Style for Pause Menu Buttons -->
+    <style name="PastelButton" parent="Widget.Material3.Button">
+        <item name="android:backgroundTint">@color/button_color</item>
+        <item name="android:textColor">@color/pastel_text_light</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+</resources>

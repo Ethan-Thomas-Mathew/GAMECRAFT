@@ -1,0 +1,70 @@
+<!-- This layout now uses a RelativeLayout to overlay the pause button and menu over the GameView. -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".GameActivity">
+
+    <com.example.flappyball.GameView
+        android:id="@+id/gameView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ImageButton
+        android:id="@+id/pauseButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="16dp"
+        android:src="@android:drawable/ic_media_pause"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Pause Game"
+        android:tint="@color/pastel_text_dark"/>
+
+    <LinearLayout
+        android:id="@+id/pauseMenu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:background="@color/transparent_black"
+        android:padding="32dp"
+        android:gravity="center"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Paused"
+            android:textColor="@color/white"
+            android:textSize="32sp"
+            android:textStyle="bold"/>
+
+        <Button
+            android:id="@+id/resumeButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Resume"
+            style="@style/PastelButton"/>
+
+        <Button
+            android:id="@+id/themesButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Themes"
+            style="@style/PastelButton"/>
+
+        <Button
+            android:id="@+id/modeButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Mode"
+            style="@style/PastelButton"/>
+    </LinearLayout>
+
+</RelativeLayout>
