@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Playable web demo of Flappy Ball, an Android game written in Kotlin.">
+<title>Flappy Ball</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: phone-shaped play area on the left, settings that mirror the Android pause menu on the right; stacks on narrow screens. */
+:root {
+  --bg: #f1f4f8;
+  --surface: #ffffff;
+  --ink: #1d2733;
+  --muted: #5b6878;
+  --line: #d6dde6;
+  --accent: #2c7a4b;
+  --accent-ink: #ffffff;
+  --phone: #1d2733;
+  --focus: #1f6feb;
+  --font-display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --surface: #19212a; --ink: #e8edf3; --muted: #9aa8b8; --line: #2c3745;
+    --accent: #77dd77; --accent-ink: #11261a; --phone: #070a0d; --focus: #6cb0ff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --surface: #19212a; --ink: #e8edf3; --muted: #9aa8b8; --line: #2c3745;
+  --accent: #77dd77; --accent-ink: #11261a; --phone: #070a0d; --focus: #6cb0ff; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+
+header { display: flex; flex-direction: column; gap: 6px; max-width: 60ch; }
+.eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(34px, 6vw, 48px); line-height: 1.05; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); }
+.lede a { color: var(--ink); text-underline-offset: 3px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 36px; align-items: start; }
+@media (max-width: 760px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+.phone { background: var(--phone); border-radius: 38px; padding: 10px; width: 100%; max-width: 360px; margin: 0 auto; box-shadow: 0 18px 40px -22px rgba(0,0,0,.45); }
+.screen { position: relative; border-radius: 29px; overflow: hidden; aspect-ratio: 1 / 2; background: #a7c7e7; }
+canvas { display: block; width: 100%; height: 100%; touch-action: manipulation; outline: none; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+canvas:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.pausebtn { position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(91,91,91,.55); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.pausebtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.pausebtn svg { width: 18px; height: 18px; fill: currentColor; }
+
+.panel { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.group { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; min-width: 0; }
+.group:first-child { border-top: 0; padding-top: 0; }
+h2 { margin: 0; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+
+.seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.seg label { position: relative; text-align: center; padding: 9px 4px; cursor: pointer; font-weight: 500; font-size: 14px; border-left: 1px solid var(--line); }
+.seg label:first-child { border-left: 0; }
+.seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+.seg label:has(input:checked) { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.seg label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: -3px; }
+
+.readout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.readout div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.readout dt { font-size: 12px; color: var(--muted); }
+.readout dd { margin: 0; font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+
+.sliders { display: grid; gap: 10px; }
+.sliders[hidden] { display: none !important; }
+.slider { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+.slider label { font-size: 14px; }
+.slider output { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; }
+.slider input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 0; }
+
+.swatchrows { display: grid; gap: 10px; }
+.swatchrows[hidden] { display: none !important; }
+.swrow { display: grid; gap: 4px; }
+.swrow > span { font-size: 13px; color: var(--muted); }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw { width: 30px; height: 30px; border-radius: 8px; border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); cursor: pointer; padding: 0; }
+.sw[aria-checked="true"] { border-color: var(--ink); }
+.sw:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.score { display: flex; gap: 22px; align-items: baseline; }
+.score strong { font-family: var(--font-display); font-weight: 600; font-size: 34px; font-variant-numeric: tabular-nums; line-height: 1; }
+.score span { color: var(--muted); font-size: 13px; display: block; }
+.hint { margin: 0; color: var(--muted); font-size: 14px; }
+kbd { font-family: var(--font-mono); font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
+.btn { align-self: flex-start; font: inherit; font-weight: 700; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+.btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.source { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 10px; }
+.source dl { margin: 0; display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 6px 16px; }
+.source dt { font-family: var(--font-mono); font-size: 13px; }
+.source dd { margin: 0; color: var(--muted); font-size: 14px; }
+.source p { margin: 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
+@media (max-width: 520px) { .source dl { grid-template-columns: minmax(0, 1fr); } .source dd { margin-bottom: 6px; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Gamecraft &middot; Android game, Kotlin</div>
+    <h1>Flappy Ball</h1>
+    <p class="lede">A playable web port of the Android game. Gravity, flap strength, pipe sizes, modes and colours use the values from the Kotlin source. <a href="https://github.com/Ethan-Thomas-Mathew/GAMECRAFT" target="_blank" rel="noopener">View the source on GitHub</a>.</p>
+  </header>
+
+  <div class="layout">
+    <div class="phone">
+      <div class="screen" id="screen">
+        <canvas id="game" width="1080" height="2160" tabindex="0" aria-label="Flappy Ball game. Press space or tap to flap."></canvas>
+        <button class="pausebtn" id="pauseBtn" type="button" aria-label="Pause">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <section class="group" aria-labelledby="h-score">
+        <h2 id="h-score">Score</h2>
+        <div class="score">
+          <div><strong id="scoreNow">0</strong><span>This run</span></div>
+          <div><strong id="scoreBest">0</strong><span>Best on this device</span></div>
+        </div>
+        <p class="hint">Tap or click the screen, or press <kbd>Space</kbd>, to flap. <kbd>P</kbd> pauses.</p>
+      </section>
+
+      <section class="group" aria-labelledby="h-mode">
+        <h2 id="h-mode">Game mode</h2>
+        <div class="seg" role="radiogroup" aria-labelledby="h-mode" id="modeSeg">
+          <label><input type="radio" name="mode" value="EASY">Easy</label>
+          <label><input type="radio" name="mode" value="MEDIUM" checked>Medium</label>
+          <label><input type="radio" name="mode" value="HARD">Hard</label>
+          <label><input type="radio" name="mode" value="CUSTOM">Custom</label>
+        </div>
+        <dl class="readout" aria-label="Current mode values">
+          <div><dt>Pipe gap</dt><dd id="rGap">600 px</dd></div>
+          <div><dt>Pipe speed</dt><dd id="rSpeed">8 px/step</dd></div>
+          <div><dt>Ball radius</dt><dd id="rBall">50 px</dd></div>
+        </dl>
+        <div class="sliders" id="customSliders" hidden>
+          <div class="slider"><label for="sSpeed">Game speed</label><output id="oSpeed" for="sSpeed">8</output><input type="range" id="sSpeed" min="5" max="15" step="1" value="8"></div>
+          <div class="slider"><label for="sGap">Obstacle spacing</label><output id="oGap" for="sGap">600</output><input type="range" id="sGap" min="450" max="800" step="10" value="600"></div>
+          <div class="slider"><label for="sBall">Ball size</label><output id="oBall" for="sBall">50</output><input type="range" id="sBall" min="30" max="70" step="5" value="50"></div>
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="h-theme">
+        <h2 id="h-theme">Theme</h2>
+        <div class="seg" role="radiogroup" aria-labelledby="h-theme" id="themeSeg">
+          <label><input type="radio" name="theme" value="sky" checked>Sky</label>
+          <label><input type="radio" name="theme" value="sunset">Sunset</label>
+          <label><input type="radio" name="theme" value="mint">Mint</label>
+          <label><input type="radio" name="theme" value="custom">Custom</label>
+        </div>
+        <div class="swatchrows" id="customTheme" hidden></div>
+      </section>
+
+      <button class="btn" id="resetBest" type="button">Reset best score</button>
+    </div>
+  </div>
+
+  <section class="source" aria-labelledby="h-src">
+    <h2 id="h-src">Where the numbers come from</h2>
+    <dl>
+      <dt>Ball.kt</dt><dd>Gravity 1.5 and flap impulse -25, applied once per step.</dd>
+      <dt>Pipe.kt</dt><dd>Pipes are 200 px wide. Hit boxes are rectangles, the same as here.</dd>
+      <dt>GameView.kt</dt><dd>A new pipe spawns once the last one has moved 55% of the screen width. The gap sits between 200 px from the top and 200 px from the bottom.</dd>
+      <dt>Difficulty</dt><dd>Easy 700 px gap at speed 7, Medium 600 at 8, Hard 500 at 10. Custom ranges: speed 5 to 15, gap 450 to 800, ball 30 to 70.</dd>
+      <dt>SharedPreferences</dt><dd>The app saves the high score and settings on the phone. This page saves them in your browser.</dd>
+    </dl>
+    <p>One difference: the Android version moves things once per drawn frame, so its speed depends on the phone's refresh rate. This page runs the game at a fixed 60 steps per second, so it plays the same on every screen.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var W = 1080, H = 2160;
+  var canvas = document.getElementById("game");
+  var ctx = canvas.getContext("2d");
+
+  // Colours from colors.xml
+  var C = {
+    sky: "#A7C7E7", yellow: "#FDFD96", green: "#77DD77", red: "#FF6961", text: "#6A6A6A",
+    sunsetBg: "#F3B0C3", sunsetObj: "#CBAACB", mintBg: "#BEE7E8", mintObj: "#A0D2DB",
+    lavBg: "#C3B1E1", peach: "#FFDAB9", shadow: "#5B5B5B"
+  };
+  var PALETTE = [
+    ["Pastel sky", C.sky], ["Pastel yellow", C.yellow], ["Pastel green", C.green],
+    ["Sunset pink", C.sunsetBg], ["Sunset lilac", C.sunsetObj], ["Mint light", C.mintBg],
+    ["Mint blue", C.mintObj], ["Lavender", C.lavBg], ["Peach", C.peach], ["Shadow grey", C.shadow]
+  ];
+  var THEMES = {
+    sky: { bg: C.sky, ball: C.yellow, pipe: C.green },
+    sunset: { bg: C.sunsetBg, ball: C.yellow, pipe: C.sunsetObj },
+    mint: { bg: C.mintBg, ball: C.yellow, pipe: C.mintObj }
+  };
+  var MODES = {
+    EASY: { gap: 700, speed: 7, ball: 50 },
+    MEDIUM: { gap: 600, speed: 8, ball: 50 },
+    HARD: { gap: 500, speed: 10, ball: 50 }
+  };
+
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  var mode = "MEDIUM", custom = { speed: 8, gap: 600, ball: 50 };
+  var themeName = "sky", customColors = { bg: C.sky, ball: C.yellow, pipe: C.green };
+  var theme = THEMES.sky;
+  var pipeW = 200, pipeGap = 600, pipeSpeed = 8, ballR = 50, pipeDistance = W * 0.55;
+
+  var state = "READY"; // READY, RUNNING, PAUSED, GAMEOVER
+  var score = 0, best = parseInt(store.get("fb.best") || "0", 10) || 0, newBest = false;
+  var ball = { x: W / 4, y: H / 2, vy: 0 };
+  var pipes = [];
+
+  var el = {
+    now: document.getElementById("scoreNow"), best: document.getElementById("scoreBest"),
+    rGap: document.getElementById("rGap"), rSpeed: document.getElementById("rSpeed"), rBall: document.getElementById("rBall"),
+    sliders: document.getElementById("customSliders"), customTheme: document.getElementById("customTheme"),
+    pauseBtn: document.getElementById("pauseBtn"), screen: document.getElementById("screen")
+  };
+
+  function applySettings() {
+    var m = mode === "CUSTOM" ? custom : MODES[mode];
+    pipeGap = m.gap; pipeSpeed = m.speed; ballR = m.ball;
+    theme = themeName === "custom" ? customColors : THEMES[themeName];
+    el.screen.style.background = theme.bg;
+    el.rGap.textContent = pipeGap + " px";
+    el.rSpeed.textContent = pipeSpeed + " px/step";
+    el.rBall.textContent = ballR + " px";
+  }
+
+  function resetGame() {
+    applySettings();
+    score = 0; newBest = false;
+    ball.x = W / 4; ball.y = H / 2; ball.vy = 0;
+    pipes.length = 0;
+    state = "READY";
+    syncUI();
+  }
+
+  function syncUI() {
+    el.now.textContent = score;
+    el.best.textContent = best;
+    var paused = state === "PAUSED";
+    el.pauseBtn.setAttribute("aria-label", paused ? "Resume" : "Pause");
+    el.pauseBtn.innerHTML = paused
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>';
+  }
+
+  function spawnPipe() {
+    var gapTop = Math.random() * (H - pipeGap - 400) + 200;
+    pipes.push({ x: W, gapTop: gapTop, scored: false });
+  }
+
+  function gameOver() {
+    if (state !== "RUNNING") return;
+    state = "GAMEOVER";
+    if (score > best) { newBest = true; best = score; store.set("fb.best", String(best)); }
+    syncUI();
+  }
+
+  function step() {
+    if (state !== "RUNNING") return;
+    ball.vy += 1.5;
+    ball.y += ball.vy;
+    if (ball.y - ballR < 0 || ball.y + ballR > H) gameOver();
+
+    var bl = ball.x - ballR, br = ball.x + ballR, bt = ball.y - ballR, bb = ball.y + ballR;
+    for (var i = 0; i < pipes.length; i++) {
+      var p = pipes[i];
+      p.x -= pipeSpeed;
+      var overlapX = bl < p.x + pipeW && br > p.x;
+      if (overlapX && (bt < p.gapTop || bb > p.gapTop + pipeGap)) gameOver();
+      if (!p.scored && p.x + pipeW < ball.x) { p.scored = true; score++; el.now.textContent = score; }
+    }
+    pipes = pipes.filter(function (p) { return p.x + pipeW >= 0; });
+    if (pipes.length === 0 || W - pipes[pipes.length - 1].x >= pipeDistance) spawnPipe();
+  }
+
+  function flap() {
+    if (state === "READY") state = "RUNNING";
+    else if (state === "RUNNING") ball.vy = -25;
+    else if (state === "GAMEOVER") resetGame();
+  }
+
+  function togglePause() {
+    if (state === "RUNNING") state = "PAUSED";
+    else if (state === "PAUSED") state = "RUNNING";
+    syncUI();
+  }
+
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  var FONT = '"Fredoka", "Trebuchet MS", sans-serif';
+  function text(str, x, y, size, color) {
+    ctx.font = "600 " + size + "px " + FONT;
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.fillText(str, x, y);
+  }
+
+  function draw() {
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.lineWidth = 10;
+    for (var i = 0; i < pipes.length; i++) {
+      var p = pipes[i];
+      var rects = [[p.x, -60, pipeW, p.gapTop + 60], [p.x, p.gapTop + pipeGap, pipeW, H - (p.gapTop + pipeGap) + 60]];
+      for (var j = 0; j < 2; j++) {
+        rr(rects[j][0], rects[j][1], rects[j][2], rects[j][3], 25);
+        ctx.fillStyle = theme.pipe; ctx.fill();
+        ctx.strokeStyle = C.shadow; ctx.stroke();
+      }
+    }
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ballR, 0, Math.PI * 2);
+    ctx.fillStyle = theme.ball; ctx.fill();
+
+    text(String(score), W / 2, 150, 100, C.text);
+
+    if (state === "READY") text("Tap to Start", W / 2, H / 2, 70, C.text);
+    else if (state === "PAUSED") text("Paused", W / 2, H / 2, 110, C.text);
+    else if (state === "GAMEOVER") {
+      text("Game Over", W / 2, H / 2 - 150, 150, C.red);
+      if (newBest) text("NEW HIGH SCORE: " + score, W / 2, H / 2 - 50, 100, C.text);
+      else {
+        text("Score: " + score, W / 2, H / 2 - 50, 100, C.text);
+        text("High Score: " + best, W / 2, H / 2 + 20, 100, C.text);
+      }
+      text("Tap to Restart", W / 2, H / 2 + 120, 70, C.text);
+    }
+  }
+
+  // Fixed 60 steps per second, independent of display refresh rate.
+  var last = 0, acc = 0, STEP = 1000 / 60;
+  function frame(t) {
+    if (!last) last = t;
+    acc += Math.min(t - last, 100);
+    last = t;
+    while (acc >= STEP) { step(); acc -= STEP; }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // Input
+  canvas.addEventListener("pointerdown", function (e) { e.preventDefault(); canvas.focus({ preventScroll: true }); flap(); });
+  document.addEventListener("keydown", function (e) {
+    var tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "BUTTON") { if (e.code !== "KeyP") return; }
+    if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") { e.preventDefault(); flap(); }
+    else if (e.code === "KeyP") { togglePause(); }
+  });
+  el.pauseBtn.addEventListener("click", function () { togglePause(); });
+  document.addEventListener("visibilitychange", function () { if (document.hidden && state === "RUNNING") { state = "PAUSED"; syncUI(); } });
+
+  // Mode controls
+  var customBox = el.sliders;
+  document.getElementById("modeSeg").addEventListener("change", function (e) {
+    mode = e.target.value;
+    customBox.hidden = mode !== "CUSTOM";
+    resetGame();
+  });
+  [["sSpeed", "oSpeed", "speed"], ["sGap", "oGap", "gap"], ["sBall", "oBall", "ball"]].forEach(function (s) {
+    var input = document.getElementById(s[0]), out = document.getElementById(s[1]);
+    input.addEventListener("input", function () {
+      custom[s[2]] = Number(input.value); out.textContent = input.value;
+      if (mode === "CUSTOM") resetGame();
+    });
+  });
+
+  // Theme controls
+  document.getElementById("themeSeg").addEventListener("change", function (e) {
+    themeName = e.target.value;
+    el.customTheme.hidden = themeName !== "custom";
+    resetGame();
+  });
+  [["bg", "Background"], ["ball", "Ball"], ["pipe", "Pipes"]].forEach(function (row) {
+    var wrap = document.createElement("div"); wrap.className = "swrow";
+    var label = document.createElement("span"); label.textContent = row[1]; wrap.appendChild(label);
+    var list = document.createElement("div"); list.className = "swatches"; list.setAttribute("role", "radiogroup"); list.setAttribute("aria-label", row[1] + " colour");
+    PALETTE.forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "sw"; b.style.background = c[1];
+      b.setAttribute("role", "radio"); b.setAttribute("aria-label", c[0]);
+      b.setAttribute("aria-checked", String(customColors[row[0]] === c[1]));
+      b.addEventListener("click", function () {
+        customColors[row[0]] = c[1];
+        Array.prototype.forEach.call(list.children, function (k) { k.setAttribute("aria-checked", String(k === b)); });
+        resetGame();
+      });
+      list.appendChild(b);
+    });
+    wrap.appendChild(list); el.customTheme.appendChild(wrap);
+  });
+
+  document.getElementById("resetBest").addEventListener("click", function () { best = 0; store.set("fb.best", "0"); syncUI(); });
+
+  resetGame();
+  requestAnimationFrame(frame);
+
+  // Redraw once the display font arrives
+  if (document.fonts && document.fonts.load) document.fonts.load('600 40px "Fredoka"').catch(function () {});
+
+})();
+</script>
+
+</body>
+</html>
